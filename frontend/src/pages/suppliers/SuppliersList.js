@@ -12,7 +12,9 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Rating
+  Rating,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { 
@@ -94,6 +96,24 @@ const mockSupplierData = [
   }
 ];
 
+// Mock API service for supplier operations
+const supplierAPI = {
+  getAll: () => {
+    return Promise.resolve(mockSupplierData);
+  },
+  create: (supplier) => {
+    const newSupplier = {
+      ...supplier,
+      id: Math.max(...mockSupplierData.map(s => s.id)) + 1,
+      contact_person: supplier.contact_name // Map contact_name to contact_person
+    };
+    return Promise.resolve(newSupplier);
+  },
+  delete: (id) => {
+    return Promise.resolve({ success: true });
+  }
+};
+
 const SuppliersList = () => {
   const navigate = useNavigate();
   const { logActivity, hasRole } = useAuth();
@@ -101,9 +121,14 @@ const SuppliersList = () => {
   const [suppliersData, setSuppliersData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   const [newSupplier, setNewSupplier] = useState({
     name: '',
-    contact_person: '',
+    contact_name: '',
     email: '',
     phone: '',
     address: '',
@@ -169,20 +194,21 @@ const SuppliersList = () => {
     // Log suppliers view activity
     logActivity('view', { page: 'suppliers-list' });
     
-    // Simulate API call to fetch suppliers data
+    // Fetch suppliers data from API
     const fetchSuppliersData = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await axios.get('/api/suppliers');
-        // setSuppliersData(response.data);
-        
-        // Using mock data for demonstration
-        setTimeout(() => {
-          setSuppliersData(mockSupplierData);
-          setLoading(false);
-        }, 1000);
+        setLoading(true);
+        const data = await supplierAPI.getAll();
+        setSuppliersData(data);
+        logActivity('Viewed suppliers list', { count: data.length });
       } catch (error) {
         console.error('Error fetching suppliers data:', error);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load supplier data',
+          severity: 'error'
+        });
+      } finally {
         setLoading(false);
       }
     };
@@ -201,6 +227,13 @@ const SuppliersList = () => {
   const handleEdit = (id) => {
     logActivity('navigate', { to: `supplier-detail`, id });
     navigate(`/suppliers/${id}`);
+  };
+  
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
   };
 
   const handleDelete = (id) => {
@@ -244,17 +277,26 @@ const SuppliersList = () => {
     });
   };
 
-  const handleAddSupplier = () => {
-    // In a real app, this would be an API call to add the supplier
-    const newSupplierWithId = {
-      ...newSupplier,
-      id: suppliersData.length > 0 ? Math.max(...suppliersData.map(supplier => supplier.id)) + 1 : 1,
-      last_delivery_date: new Date().toISOString()
-    };
-    
-    setSuppliersData([...suppliersData, newSupplierWithId]);
-    logActivity('create', { entity: 'supplier', id: newSupplierWithId.id });
-    handleAddDialogClose();
+  const handleAddSupplier = async () => {
+    try {
+      const addedSupplier = await supplierAPI.create(newSupplier);
+      setSuppliersData([...suppliersData, addedSupplier]);
+      setSnackbar({
+        open: true,
+        message: 'Supplier added successfully',
+        severity: 'success'
+      });
+      
+      logActivity('create', { entity: 'supplier', id: addedSupplier.id });
+      handleAddDialogClose();
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to add supplier',
+        severity: 'error'
+      });
+    }
   };
 
   if (loading) {
@@ -329,8 +371,8 @@ const SuppliersList = () => {
               fullWidth
               margin="normal"
               label="Contact Person"
-              name="contact_person"
-              value={newSupplier.contact_person}
+              name="contact_name"
+              value={newSupplier.contact_name}
               onChange={handleInputChange}
               required
             />
@@ -411,6 +453,17 @@ const SuppliersList = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

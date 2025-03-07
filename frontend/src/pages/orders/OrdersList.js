@@ -16,45 +16,30 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Snackbar,
+  Alert,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody
 } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import {
   Add as AddIcon,
   Search as SearchIcon,
   Edit as EditIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-// Mock data - in a real app, this would come from API calls
-const mockOrdersData = [
-  { id: 1, order_date: '2023-05-15T10:30:00Z', status: 'pending', total_amount: 12500, supplier_name: 'ABC Electronics', items_count: 5 },
-  { id: 2, order_date: '2023-05-14T09:15:00Z', status: 'processing', total_amount: 8750, supplier_name: 'XYZ Manufacturing', items_count: 3 },
-  { id: 3, order_date: '2023-05-12T14:45:00Z', status: 'completed', total_amount: 15200, supplier_name: 'Global Supplies Inc.', items_count: 7 },
-  { id: 4, order_date: '2023-05-10T11:20:00Z', status: 'completed', total_amount: 6300, supplier_name: 'Tech Components Ltd.', items_count: 2 },
-  { id: 5, order_date: '2023-05-08T16:00:00Z', status: 'cancelled', total_amount: 4500, supplier_name: 'Acme Supplies', items_count: 4 },
-  { id: 6, order_date: '2023-05-05T13:10:00Z', status: 'completed', total_amount: 9800, supplier_name: 'ABC Electronics', items_count: 6 },
-  { id: 7, order_date: '2023-05-03T10:45:00Z', status: 'completed', total_amount: 7200, supplier_name: 'XYZ Manufacturing', items_count: 3 },
-  { id: 8, order_date: '2023-05-01T09:30:00Z', status: 'completed', total_amount: 11000, supplier_name: 'Global Supplies Inc.', items_count: 5 },
-];
+// Import the API services
+import { orderAPI, supplierAPI, inventoryAPI } from '../../services/api';
 
-const mockSuppliersData = [
-  { id: 1, name: 'ABC Electronics', contact_name: 'John Smith', email: 'john@abcelectronics.com' },
-  { id: 2, name: 'XYZ Manufacturing', contact_name: 'Jane Doe', email: 'jane@xyzmanufacturing.com' },
-  { id: 3, name: 'Global Supplies Inc.', contact_name: 'Robert Johnson', email: 'robert@globalsupplies.com' },
-  { id: 4, name: 'Tech Components Ltd.', contact_name: 'Sarah Williams', email: 'sarah@techcomponents.com' },
-  { id: 5, name: 'Acme Supplies', contact_name: 'Michael Brown', email: 'michael@acmesupplies.com' },
-];
-
-const mockInventoryData = [
-  { id: 1, product_name: 'Microprocessor A1', unit_price: 89.99, quantity_available: 150 },
-  { id: 2, product_name: 'RAM Module 8GB', unit_price: 45.50, quantity_available: 200 },
-  { id: 3, product_name: 'SSD 500GB', unit_price: 120.00, quantity_available: 75 },
-  { id: 4, product_name: 'Graphics Card X2', unit_price: 350.00, quantity_available: 30 },
-  { id: 5, product_name: 'Motherboard Z490', unit_price: 180.00, quantity_available: 45 },
-];
 
 const OrdersList = () => {
   const navigate = useNavigate();
@@ -79,6 +64,13 @@ const OrdersList = () => {
     inventory_id: '',
     quantity: 1,
     unit_price: 0
+  });
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
   });
 
   // Define columns for the data grid
@@ -169,32 +161,61 @@ const OrdersList = () => {
   ];
 
   useEffect(() => {
-    // Log orders view activity
-    logActivity('view', { page: 'orders-list' });
-    
-    // Simulate API calls to fetch orders data, suppliers, and inventory
-    const fetchData = async () => {
-      try {
-        // In a real app, these would be API calls
-        // const ordersResponse = await axios.get('/api/orders');
-        // const suppliersResponse = await axios.get('/api/suppliers');
-        // const inventoryResponse = await axios.get('/api/inventory');
-        
-        // Using mock data for demonstration
-        setTimeout(() => {
-          setOrdersData(mockOrdersData);
-          setSuppliers(mockSuppliersData);
-          setInventory(mockInventoryData);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchOrdersData();
+    fetchInventoryData();
   }, [logActivity]);
+
+  // Function to fetch orders data
+  const fetchOrdersData = async () => {
+    try {
+      setLoading(true);
+      // Fetch orders from the API
+      const ordersResponse = await orderAPI.getAll();
+      
+      // Fetch suppliers from the API
+      const suppliersResponse = await supplierAPI.getAll();
+      
+      // Process orders data to include supplier name and items count
+      const processedOrders = ordersResponse.map(order => {
+        const supplier = suppliersResponse.find(s => s.id === order.supplier_id);
+        return {
+          ...order,
+          supplier_name: supplier ? supplier.name : 'Unknown Supplier',
+          items_count: order.order_items ? order.order_items.length : 0
+        };
+      });
+      
+      setOrdersData(processedOrders);
+      setSuppliers(suppliersResponse);
+      
+      logActivity('view', { page: 'orders-list', count: processedOrders.length });
+    } catch (error) {
+      console.error('Error fetching orders data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load orders data',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to fetch inventory data
+  const fetchInventoryData = async () => {
+    try {
+      // Fetch inventory data from the API
+      const inventoryResponse = await inventoryAPI.getAll();
+      setInventory(inventoryResponse);
+    } catch (error) {
+      console.error('Error fetching inventory data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load inventory data',
+        severity: 'error'
+      });
+    }
+  };
 
   // Filter orders data based on search term and status filter
   const filteredOrders = ordersData.filter(order => {
@@ -213,8 +234,8 @@ const OrdersList = () => {
   };
 
   const handleEditOrder = (id) => {
-    logActivity('navigate', { to: `order-edit`, id });
-    navigate(`/orders/${id}/edit`);
+    logActivity('navigate', { to: `order-detail`, id });
+    navigate(`/orders/${id}`);
   };
 
   const handleNewOrderDialogOpen = () => {
@@ -258,29 +279,35 @@ const OrdersList = () => {
   };
 
   const handleAddItem = () => {
-    // Validate item
-    if (!currentItem.inventory_id || currentItem.quantity <= 0) return;
+    // Find the inventory item to get its details
+    const inventoryItem = inventory.find(item => item.id === parseInt(currentItem.inventory_id));
     
-    const selectedItem = inventory.find(item => item.id === parseInt(currentItem.inventory_id));
+    if (!inventoryItem) return;
     
-    // Add item to order
-    setNewOrder(prev => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          ...currentItem,
-          product_name: selectedItem.product_name,
-          total: currentItem.quantity * currentItem.unit_price
-        }
-      ]
-    }));
+    const itemToAdd = {
+      inventory_id: parseInt(currentItem.inventory_id),
+      product_name: inventoryItem.product_name,
+      quantity: parseInt(currentItem.quantity),
+      unit_price: parseFloat(currentItem.unit_price || inventoryItem.unit_price)
+    };
     
-    // Reset current item
+    setNewOrder({
+      ...newOrder,
+      items: [...newOrder.items, itemToAdd]
+    });
+    
+    // Reset current item form
     setCurrentItem({
       inventory_id: '',
       quantity: 1,
       unit_price: 0
+    });
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
     });
   };
 
@@ -291,26 +318,71 @@ const OrdersList = () => {
     }));
   };
 
-  const handleCreateOrder = () => {
-    // Validate order
-    if (!newOrder.supplier_id || newOrder.items.length === 0) return;
-    
-    // Calculate total amount
-    const totalAmount = newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-    
-    // In a real app, this would be an API call to create the order
-    const newOrderWithId = {
-      ...newOrder,
-      id: ordersData.length > 0 ? Math.max(...ordersData.map(order => order.id)) + 1 : 1,
-      order_date: new Date().toISOString(),
-      total_amount: totalAmount,
-      supplier_name: suppliers.find(s => s.id === parseInt(newOrder.supplier_id))?.name,
-      items_count: newOrder.items.length
-    };
-    
-    setOrdersData([newOrderWithId, ...ordersData]);
-    logActivity('create', { entity: 'order', id: newOrderWithId.id });
-    handleNewOrderDialogClose();
+  const resetNewOrderForm = () => {
+    setNewOrder({
+      supplier_id: '',
+      status: 'pending',
+      items: []
+    });
+    setCurrentItem({
+      inventory_id: '',
+      quantity: 1,
+      unit_price: 0
+    });
+  };
+
+  const handleCreateOrder = async () => {
+    try {
+      // Calculate total amount
+      const totalAmount = newOrder.items.reduce((sum, item) => {
+        return sum + (item.quantity * item.unit_price);
+      }, 0);
+      
+      // Prepare order data for API
+      const orderData = {
+        supplier_id: parseInt(newOrder.supplier_id),
+        status: newOrder.status,
+        items: newOrder.items.map(item => ({
+          inventory_id: parseInt(item.inventory_id),
+          quantity: parseInt(item.quantity),
+          unit_price: parseFloat(item.unit_price)
+        }))
+      };
+      
+      // Create order via API
+      const createdOrder = await orderAPI.create(orderData);
+      
+      // Add supplier name for display
+      const supplier = suppliers.find(s => s.id === parseInt(newOrder.supplier_id));
+      const orderWithSupplierName = {
+        ...createdOrder,
+        supplier_name: supplier ? supplier.name : 'Unknown Supplier',
+        items_count: createdOrder.order_items ? createdOrder.order_items.length : 0
+      };
+      
+      setOrdersData([...ordersData, orderWithSupplierName]);
+      setOpenNewOrderDialog(false);
+      
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Order created successfully',
+        severity: 'success'
+      });
+      
+      // Log activity
+      logActivity('create', { entity: 'order', id: createdOrder.id });
+      
+      // Reset form
+      resetNewOrderForm();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to create order',
+        severity: 'error'
+      });
+    }
   };
 
   if (loading) {
@@ -331,7 +403,6 @@ const OrdersList = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleNewOrderDialogOpen}
-          disabled={!hasRole('user')}
         >
           New Order
         </Button>
@@ -340,6 +411,7 @@ const OrdersList = () => {
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <TextField
+            sx={{ flexGrow: 1 }}
             variant="outlined"
             placeholder="Search orders..."
             value={searchTerm}
@@ -351,7 +423,6 @@ const OrdersList = () => {
                 </InputAdornment>
               ),
             }}
-            sx={{ flexGrow: 1 }}
           />
           <FormControl sx={{ minWidth: 150 }}>
             <InputLabel id="status-filter-label">Status</InputLabel>
@@ -361,7 +432,7 @@ const OrdersList = () => {
               label="Status"
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="all">All Statuses</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="processing">Processing</MenuItem>
               <MenuItem value="completed">Completed</MenuItem>
@@ -369,22 +440,25 @@ const OrdersList = () => {
             </Select>
           </FormControl>
         </Box>
-      </Paper>
 
-      <Paper sx={{ width: '100%', mb: 3 }}>
-        <DataGrid
-          rows={filteredOrders}
-          columns={columns}
-          pageSize={10}
-          rowsPerPageOptions={[5, 10, 25]}
-          checkboxSelection
-          disableSelectionOnClick
-          autoHeight
-          components={{
-            Toolbar: GridToolbar,
-          }}
-          sx={{ minHeight: 400 }}
-        />
+        <div style={{ height: 600, width: '100%' }}>
+          <DataGrid
+            rows={filteredOrders}
+            columns={columns}
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            checkboxSelection
+            disableSelectionOnClick
+            components={{
+              Toolbar: GridToolbar,
+            }}
+            initialState={{
+              sorting: {
+                sortModel: [{ field: 'order_date', sort: 'desc' }],
+              },
+            }}
+          />
+        </div>
       </Paper>
 
       {/* New Order Dialog */}
@@ -393,13 +467,14 @@ const OrdersList = () => {
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel id="supplier-label">Supplier</InputLabel>
+              <InputLabel id="supplier-select-label">Supplier</InputLabel>
               <Select
-                labelId="supplier-label"
+                labelId="supplier-select-label"
                 name="supplier_id"
                 value={newOrder.supplier_id}
                 label="Supplier"
                 onChange={handleOrderInputChange}
+                required
               >
                 {suppliers.map((supplier) => (
                   <MenuItem key={supplier.id} value={supplier.id}>
@@ -409,16 +484,16 @@ const OrdersList = () => {
               </Select>
             </FormControl>
 
-            <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
               Order Items
             </Typography>
-
-            {/* Add Item Form */}
+            
+            {/* Add item form */}
             <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-end' }}>
-              <FormControl sx={{ minWidth: 200 }}>
-                <InputLabel id="inventory-label">Product</InputLabel>
+              <FormControl sx={{ flexGrow: 1 }}>
+                <InputLabel id="inventory-select-label">Product</InputLabel>
                 <Select
-                  labelId="inventory-label"
+                  labelId="inventory-select-label"
                   name="inventory_id"
                   value={currentItem.inventory_id}
                   label="Product"
@@ -432,78 +507,103 @@ const OrdersList = () => {
                 </Select>
               </FormControl>
               <TextField
-                label="Quantity"
                 name="quantity"
+                label="Quantity"
                 type="number"
                 value={currentItem.quantity}
                 onChange={handleItemInputChange}
                 InputProps={{ inputProps: { min: 1 } }}
                 sx={{ width: 120 }}
               />
-              <TextField
-                label="Unit Price"
-                name="unit_price"
-                type="number"
-                value={currentItem.unit_price}
-                InputProps={{ readOnly: true, startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-                sx={{ width: 150 }}
-              />
-              <Button
-                variant="contained"
+              <Button 
+                variant="outlined" 
                 onClick={handleAddItem}
-                disabled={!currentItem.inventory_id || currentItem.quantity <= 0}
+                disabled={!currentItem.inventory_id || currentItem.quantity < 1}
               >
-                Add Item
+                Add
               </Button>
             </Box>
 
-            {/* Items List */}
+            {/* Items list */}
             {newOrder.items.length > 0 ? (
-              <Paper sx={{ mt: 2 }}>
-                <Box sx={{ p: 2 }}>
-                  {newOrder.items.map((item, index) => (
-                    <Box key={index} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, p: 1, borderBottom: '1px solid #eee' }}>
-                      <Box>
-                        <Typography variant="subtitle1">{item.product_name}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {item.quantity} x ${item.unit_price.toFixed(2)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Typography variant="subtitle1" sx={{ mr: 2 }}>
-                          ${(item.quantity * item.unit_price).toFixed(2)}
-                        </Typography>
-                        <IconButton size="small" color="error" onClick={() => handleRemoveItem(index)}>
-                          <span>×</span>
-                        </IconButton>
-                      </Box>
-                    </Box>
-                  ))}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 2, borderTop: '1px solid #eee' }}>
-                    <Typography variant="h6">
-                      Total: ${newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Paper>
+              <TableContainer component={Paper} sx={{ mb: 2 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Product</TableCell>
+                      <TableCell align="right">Quantity</TableCell>
+                      <TableCell align="right">Unit Price</TableCell>
+                      <TableCell align="right">Total</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {newOrder.items.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.product_name}</TableCell>
+                        <TableCell align="right">{item.quantity}</TableCell>
+                        <TableCell align="right">${item.unit_price.toFixed(2)}</TableCell>
+                        <TableCell align="right">${(item.quantity * item.unit_price).toFixed(2)}</TableCell>
+                        <TableCell align="right">
+                          <IconButton size="small" onClick={() => handleRemoveItem(index)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                        Total:
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                        ${newOrder.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
             ) : (
-              <Typography variant="body1" color="text.secondary" sx={{ mt: 2, mb: 2 }}>
-                No items added yet. Add items to create an order.
-              </Typography>
+              <Alert severity="info" sx={{ mb: 2 }}>No items added yet</Alert>
             )}
+
+            <FormControl fullWidth sx={{ mt: 2 }}>
+              <InputLabel id="status-select-label">Status</InputLabel>
+              <Select
+                labelId="status-select-label"
+                name="status"
+                value={newOrder.status}
+                label="Status"
+                onChange={handleOrderInputChange}
+              >
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="processing">Processing</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleNewOrderDialogClose}>Cancel</Button>
           <Button 
+            onClick={handleCreateOrder} 
             variant="contained" 
-            onClick={handleCreateOrder}
             disabled={!newOrder.supplier_id || newOrder.items.length === 0}
           >
             Create Order
           </Button>
         </DialogActions>
       </Dialog>
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

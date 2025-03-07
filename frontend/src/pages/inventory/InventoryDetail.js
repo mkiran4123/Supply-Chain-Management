@@ -20,13 +20,9 @@ import {
   Inventory as InventoryIcon 
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { inventoryAPI } from '../../services/api';
 
-// Mock data - in a real app, this would come from API calls
-const mockInventoryData = [
-  { id: 1, product_name: 'Microprocessor A1', description: 'High-performance CPU', quantity: 150, unit_price: 89.99, category: 'Electronics', location: 'Warehouse A', last_updated: '2023-05-10T14:30:00Z' },
-  { id: 2, product_name: 'RAM Module 8GB', description: 'DDR4 Memory', quantity: 200, unit_price: 45.50, category: 'Electronics', location: 'Warehouse A', last_updated: '2023-05-09T11:20:00Z' },
-  { id: 3, product_name: 'SSD 500GB', description: 'Solid State Drive', quantity: 75, unit_price: 120.00, category: 'Storage', location: 'Warehouse B', last_updated: '2023-05-08T09:15:00Z' },
-];
+
 
 const InventoryDetail = () => {
   const { id } = useParams();
@@ -51,25 +47,13 @@ const InventoryDetail = () => {
     // Log inventory detail view activity
     logActivity('view', { page: 'inventory-detail', id });
     
-    // Simulate API call to fetch inventory item data
+    // Fetch inventory item data from API
     const fetchInventoryItem = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await axios.get(`/api/inventory/${id}`);
-        // setInventoryItem(response.data);
-        // setFormData(response.data);
-        
-        // Using mock data for demonstration
-        setTimeout(() => {
-          const item = mockInventoryData.find(item => item.id === parseInt(id));
-          if (item) {
-            setInventoryItem(item);
-            setFormData(item);
-          } else {
-            setError('Inventory item not found');
-          }
-          setLoading(false);
-        }, 1000);
+        const item = await inventoryAPI.getById(parseInt(id));
+        setInventoryItem(item);
+        setFormData(item);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching inventory item:', error);
         setError('Failed to load inventory item');
@@ -95,19 +79,17 @@ const InventoryDetail = () => {
     setSuccess(false);
     
     try {
-      // In a real app, this would be an API call
-      // await axios.put(`/api/inventory/${id}`, formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update inventory item via API
+      const updatedItem = await inventoryAPI.update(parseInt(id), formData);
       
       // Update local state
-      setInventoryItem(formData);
+      setInventoryItem(updatedItem);
+      setFormData(updatedItem);
       setSuccess(true);
       logActivity('update', { entity: 'inventory', id });
     } catch (error) {
       console.error('Error updating inventory item:', error);
-      setError('Failed to update inventory item');
+      setError('Failed to update inventory item: ' + (error.response?.data?.detail || error.message));
     } finally {
       setSaving(false);
     }

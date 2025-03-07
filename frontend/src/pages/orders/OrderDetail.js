@@ -25,23 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
-// Mock data - in a real app, this would come from API calls
-const mockOrdersData = [
-  { 
-    id: 1, 
-    order_date: '2023-05-15T10:30:00Z', 
-    status: 'pending', 
-    total_amount: 12500, 
-    supplier_name: 'ABC Electronics',
-    items: [
-      { id: 1, product_name: 'Microprocessor A1', quantity: 50, unit_price: 150, total: 7500 },
-      { id: 2, product_name: 'RAM Module 8GB', quantity: 100, unit_price: 50, total: 5000 }
-    ],
-    shipping_address: '123 Tech Street, Silicon Valley, CA 94025',
-    payment_terms: 'Net 30',
-    notes: 'Priority order for Q3 production'
-  }
-];
+import { orderAPI, supplierAPI } from '../../services/api';
 
 const OrderDetail = () => {
   const { id } = useParams();
@@ -56,26 +40,42 @@ const OrderDetail = () => {
     // Log order detail view activity
     logActivity('view', { page: 'order-detail', id });
     
-    // Simulate API call to fetch order data
+    // Fetch order data from API
     const fetchOrder = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await axios.get(`/api/orders/${id}`);
-        // setOrder(response.data);
+        // Get order details from API
+        const orderData = await orderAPI.getById(parseInt(id));
         
-        // Using mock data for demonstration
-        setTimeout(() => {
-          const foundOrder = mockOrdersData.find(order => order.id === parseInt(id));
-          if (foundOrder) {
-            setOrder(foundOrder);
-          } else {
-            setError('Order not found');
-          }
-          setLoading(false);
-        }, 1000);
+        // Get supplier details to add supplier name
+        const supplierData = await supplierAPI.getById(orderData.supplier_id);
+        
+        // Process order items to calculate totals
+        const processedItems = orderData.order_items.map(item => {
+          // Check if inventory_item exists and has product_name
+          const productName = item.inventory_item ? 
+            (item.inventory_item.product_name || 'Unknown Product') : 
+            'Unknown Product';
+          
+          return {
+            ...item,
+            total: item.quantity * item.unit_price,
+            product_name: productName
+          };
+        });
+        
+        // Combine order and supplier data
+        const orderWithSupplierName = {
+          ...orderData,
+          supplier_name: supplierData.name,
+          items: processedItems
+        };
+        
+        console.log('Processed order data:', orderWithSupplierName);
+        setOrder(orderWithSupplierName);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching order:', error);
-        setError('Failed to load order');
+        setError('Failed to load order: ' + (error.response?.data?.detail || error.message));
         setLoading(false);
       }
     };

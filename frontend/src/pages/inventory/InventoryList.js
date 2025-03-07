@@ -11,7 +11,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { 
@@ -22,20 +24,10 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { inventoryAPI } from '../../services/api';
 
-// Mock data - in a real app, this would come from API calls
-const mockInventoryData = [
-  { id: 1, product_name: 'Microprocessor A1', description: 'High-performance CPU', quantity: 150, unit_price: 89.99, category: 'Electronics', location: 'Warehouse A' },
-  { id: 2, product_name: 'RAM Module 8GB', description: 'DDR4 Memory', quantity: 200, unit_price: 45.50, category: 'Electronics', location: 'Warehouse A' },
-  { id: 3, product_name: 'SSD 500GB', description: 'Solid State Drive', quantity: 75, unit_price: 120.00, category: 'Storage', location: 'Warehouse B' },
-  { id: 4, product_name: 'Graphics Card X2', description: 'Gaming GPU', quantity: 30, unit_price: 350.00, category: 'Electronics', location: 'Warehouse A' },
-  { id: 5, product_name: 'Motherboard Z490', description: 'ATX Form Factor', quantity: 45, unit_price: 180.00, category: 'Electronics', location: 'Warehouse C' },
-  { id: 6, product_name: 'Power Supply 750W', description: 'Modular PSU', quantity: 60, unit_price: 95.00, category: 'Power', location: 'Warehouse B' },
-  { id: 7, product_name: 'CPU Cooler', description: 'Liquid cooling system', quantity: 25, unit_price: 120.00, category: 'Cooling', location: 'Warehouse A' },
-  { id: 8, product_name: 'Case Mid-Tower', description: 'Computer case', quantity: 40, unit_price: 85.00, category: 'Accessories', location: 'Warehouse C' },
-  { id: 9, product_name: 'Monitor 27"', description: '4K IPS Display', quantity: 20, unit_price: 299.99, category: 'Displays', location: 'Warehouse D' },
-  { id: 10, product_name: 'Keyboard Mechanical', description: 'RGB Gaming Keyboard', quantity: 35, unit_price: 110.00, category: 'Peripherals', location: 'Warehouse D' },
-];
+// Note: We're now using the real API service imported from services/api.js
+// instead of the mock data and mock API service
 
 const InventoryList = () => {
   const navigate = useNavigate();
@@ -44,6 +36,11 @@ const InventoryList = () => {
   const [inventoryData, setInventoryData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   const [newItem, setNewItem] = useState({
     product_name: '',
     description: '',
@@ -52,6 +49,120 @@ const InventoryList = () => {
     category: '',
     location: ''
   });
+
+  useEffect(() => {
+    fetchInventoryData();
+  }, [logActivity]);
+  
+  // Function to fetch inventory data
+  const fetchInventoryData = async () => {
+    try {
+      setLoading(true);
+      // Using the real API service to fetch data from the database
+      const data = await inventoryAPI.getAll();
+      setInventoryData(data);
+    } catch (error) {
+      console.error('Error fetching inventory data:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to load inventory data',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter inventory data based on search term
+  const filteredInventory = inventoryData.filter(item => 
+    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleEdit = (id) => {
+    logActivity('navigate', { to: `inventory-detail`, id });
+    navigate(`/inventory/${id}`);
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await inventoryAPI.delete(id);
+      // Refresh the inventory data after deletion
+      fetchInventoryData();
+      
+      setSnackbar({
+        open: true,
+        message: 'Inventory item deleted successfully',
+        severity: 'success'
+      });
+      
+      logActivity('delete', { entity: 'inventory', id });
+    } catch (error) {
+      console.error('Error deleting inventory item:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete inventory item',
+        severity: 'error'
+      });
+    }
+  };
+  
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
+
+  const handleAddDialogOpen = () => {
+    setOpenAddDialog(true);
+  };
+
+  const handleAddDialogClose = () => {
+    setOpenAddDialog(false);
+    setNewItem({
+      product_name: '',
+      description: '',
+      quantity: 0,
+      unit_price: 0,
+      category: '',
+      location: ''
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewItem({
+      ...newItem,
+      [name]: name === 'quantity' || name === 'unit_price' ? parseFloat(value) : value
+    });
+  };
+
+  const handleAddItem = async () => {
+    try {
+      await inventoryAPI.create(newItem);
+      // Refresh the inventory data after adding a new item
+      fetchInventoryData();
+      
+      setSnackbar({
+        open: true,
+        message: 'Inventory item added successfully',
+        severity: 'success'
+      });
+      
+      logActivity('create', { entity: 'inventory' });
+      handleAddDialogClose();
+    } catch (error) {
+      console.error('Error adding inventory item:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to add inventory item',
+        severity: 'error'
+      });
+    }
+  };
 
   // Define columns for the data grid
   const columns = [
@@ -96,87 +207,6 @@ const InventoryList = () => {
       },
     },
   ];
-
-  useEffect(() => {
-    // Log inventory view activity
-    logActivity('view', { page: 'inventory-list' });
-    
-    // Simulate API call to fetch inventory data
-    const fetchInventoryData = async () => {
-      try {
-        // In a real app, this would be an API call
-        // const response = await axios.get('/api/inventory');
-        // setInventoryData(response.data);
-        
-        // Using mock data for demonstration
-        setTimeout(() => {
-          setInventoryData(mockInventoryData);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Error fetching inventory data:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchInventoryData();
-  }, [logActivity]);
-
-  // Filter inventory data based on search term
-  const filteredInventory = inventoryData.filter(item => 
-    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleEdit = (id) => {
-    logActivity('navigate', { to: `inventory-detail`, id });
-    navigate(`/inventory/${id}`);
-  };
-
-  const handleDelete = (id) => {
-    // In a real app, this would be an API call to delete the item
-    // For now, just filter it out from the local state
-    setInventoryData(inventoryData.filter(item => item.id !== id));
-    logActivity('delete', { entity: 'inventory', id });
-  };
-
-  const handleAddDialogOpen = () => {
-    setOpenAddDialog(true);
-  };
-
-  const handleAddDialogClose = () => {
-    setOpenAddDialog(false);
-    setNewItem({
-      product_name: '',
-      description: '',
-      quantity: 0,
-      unit_price: 0,
-      category: '',
-      location: ''
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewItem({
-      ...newItem,
-      [name]: name === 'quantity' || name === 'unit_price' ? parseFloat(value) : value
-    });
-  };
-
-  const handleAddItem = () => {
-    // In a real app, this would be an API call to add the item
-    const newItemWithId = {
-      ...newItem,
-      id: inventoryData.length > 0 ? Math.max(...inventoryData.map(item => item.id)) + 1 : 1
-    };
-    
-    setInventoryData([...inventoryData, newItemWithId]);
-    logActivity('create', { entity: 'inventory', id: newItemWithId.id });
-    handleAddDialogClose();
-  };
 
   if (loading) {
     return (
@@ -228,6 +258,11 @@ const InventoryList = () => {
             disableSelectionOnClick
             components={{
               Toolbar: GridToolbar,
+            }}
+            initialState={{
+              sorting: {
+                sortModel: [{ field: 'id', sort: 'asc' }],
+              },
             }}
           />
         </div>
@@ -309,6 +344,17 @@ const InventoryList = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      <Snackbar 
+        open={snackbar.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -12,18 +12,26 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is already logged in on component mount
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      // For demo purposes, we'll just set a mock user
-      // In a real app, you would validate the token with your backend
-      setCurrentUser({
-        id: 'user-1',
-        name: 'Demo User',
-        email: 'demo@example.com',
-        role: 'admin', // Could be 'admin', 'manager', or 'user' as per TR4.3
-      });
-    }
-    setLoading(false);
+    const fetchUser = async () => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        try {
+          const userData = await authAPI.getCurrentUser();
+          setCurrentUser({
+            id: userData.id,
+            name: userData.full_name,
+            email: userData.email,
+            role: 'admin', // Assuming admin role for now, could be determined by backend
+          });
+        } catch (err) {
+          console.error('Failed to fetch user data:', err);
+          localStorage.removeItem('authToken');
+        }
+      }
+      setLoading(false);
+    };
+    
+    fetchUser();
   }, []);
 
   // Login function
@@ -32,26 +40,26 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      // In a real app, this would be an API call to your backend
-      // const response = await axios.post('/api/auth/login', { email, password });
+      // Call the backend API to authenticate
+      const response = await authAPI.login(email, password);
       
-      // For demo purposes, we'll simulate a successful login
-      // with a mock token and user data
-      const mockResponse = {
-        token: 'mock-jwt-token',
-        user: {
-          id: 'user-1',
-          name: 'Demo User',
-          email: email,
-          role: 'admin',
-        }
+      // Store the token
+      localStorage.setItem('authToken', response.access_token);
+      
+      // Fetch user data
+      const userData = await authAPI.getCurrentUser();
+      
+      const user = {
+        id: userData.id,
+        name: userData.full_name,
+        email: userData.email,
+        role: 'admin', // Assuming admin role for now, could be determined by backend
       };
       
-      localStorage.setItem('authToken', mockResponse.token);
-      setCurrentUser(mockResponse.user);
-      return mockResponse.user;
+      setCurrentUser(user);
+      return user;
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login');
+      setError(err.response?.data?.detail || 'Failed to login');
       throw err;
     } finally {
       setLoading(false);
@@ -78,18 +86,8 @@ export const AuthProvider = ({ children }) => {
 
   // Log activity for audit purposes (TR4.4)
   const logActivity = (action, details) => {
-    // In a real app, this would send the activity log to your backend
+    // For now, just log to console, but in the future this could be sent to the backend
     console.log(`[AUDIT] ${new Date().toISOString()} - User ${currentUser?.id}: ${action}`, details);
-    
-    // Example implementation with axios:
-    // if (currentUser) {
-    //   axios.post('/api/logs/activity', {
-    //     userId: currentUser.id,
-    //     action,
-    //     details,
-    //     timestamp: new Date().toISOString()
-    //   });
-    // }
   };
 
   const value = {
