@@ -14,9 +14,11 @@ import OrdersList from './pages/orders/OrdersList';
 import OrderDetail from './pages/orders/OrderDetail';
 import SuppliersList from './pages/suppliers/SuppliersList';
 import SupplierDetail from './pages/suppliers/SupplierDetail';
+import SupplierRecommendation from './pages/suppliers/SupplierRecommendation';
 import ForecastingDashboard from './pages/forecasting/ForecastingDashboard';
 import LogisticsDashboard from './pages/logistics/LogisticsDashboard';
 import ReportsDashboard from './pages/reports/ReportsDashboard';
+import ChatbotAssistant from './pages/chatbot/ChatbotAssistant';
 import Login from './pages/auth/Login';
 
 // Auth context
@@ -73,6 +75,7 @@ function AppContent({ sidebarOpen, setSidebarOpen }) {
               {/* Supplier Routes */}
               <Route path="/suppliers" element={<SuppliersList />} />
               <Route path="/suppliers/:id" element={<SupplierDetail />} />
+              <Route path="/supplier-recommendations" element={<SupplierRecommendation />} />
               
               {/* Forecasting Routes */}
               <Route path="/forecasting" element={<ForecastingDashboard />} />
@@ -82,6 +85,9 @@ function AppContent({ sidebarOpen, setSidebarOpen }) {
               
               {/* Reports Routes */}
               <Route path="/reports" element={<ReportsDashboard />} />
+              
+              {/* AI Assistant Routes */}
+              <Route path="/ai-assistant" element={<ChatbotAssistant />} />
             </Route>
             
             {/* Redirect to dashboard if path doesn't match */}

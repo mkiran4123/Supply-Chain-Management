@@ -8,7 +8,9 @@ import {
   People as SupplierIcon, 
   Assessment as ReportIcon,
   Timeline as ForecastIcon,
-  LocalShipping as LogisticsIcon
+  LocalShipping as LogisticsIcon,
+  Recommend as RecommendIcon,
+  SmartToy as ChatbotIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
@@ -17,7 +19,7 @@ const drawerWidth = 240;
 const Sidebar = ({ open, setOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, hasRole, logActivity } = useAuth();
+  const { hasRole, logActivity } = useAuth();
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
@@ -27,6 +29,8 @@ const Sidebar = ({ open, setOpen }) => {
     { text: 'Forecasting', icon: <ForecastIcon />, path: '/forecasting', role: 'manager' },
     { text: 'Logistics', icon: <LogisticsIcon />, path: '/logistics' },
     { text: 'Reports', icon: <ReportIcon />, path: '/reports' },
+    { text: 'Supplier Recommendation', icon: <RecommendIcon />, path: '/supplier-recommendation' },
+    { text: 'AI Assistant', icon: <ChatbotIcon />, path: '/ai-assistant' },
   ];
 
   const handleNavigation = (path, text) => {

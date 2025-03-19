@@ -52,9 +52,16 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Supply Chain Management
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+          <img 
+            src="/assets/DXC.png" 
+            alt="DXC Logo" 
+            style={{ height: '30px', marginRight: '12px' }} 
+          />
+          <Typography variant="h6" noWrap component="div">
+            Supply Chain Management
+          </Typography>
+        </Box>
 
         {currentUser && (
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

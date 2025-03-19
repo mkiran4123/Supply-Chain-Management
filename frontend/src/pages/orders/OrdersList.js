@@ -43,7 +43,7 @@ import { orderAPI, supplierAPI, inventoryAPI } from '../../services/api';
 
 const OrdersList = () => {
   const navigate = useNavigate();
-  const { logActivity, hasRole } = useAuth();
+  const { logActivity } = useAuth();
   const [loading, setLoading] = useState(true);
   const [ordersData, setOrdersData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -160,11 +160,6 @@ const OrdersList = () => {
     },
   ];
 
-  useEffect(() => {
-    fetchOrdersData();
-    fetchInventoryData();
-  }, [logActivity]);
-
   // Function to fetch orders data
   const fetchOrdersData = async () => {
     try {
@@ -216,6 +211,11 @@ const OrdersList = () => {
       });
     }
   };
+
+  useEffect(() => {
+    fetchOrdersData();
+    fetchInventoryData();
+  }, [logActivity]);
 
   // Filter orders data based on search term and status filter
   const filteredOrders = ordersData.filter(order => {
@@ -333,11 +333,6 @@ const OrdersList = () => {
 
   const handleCreateOrder = async () => {
     try {
-      // Calculate total amount
-      const totalAmount = newOrder.items.reduce((sum, item) => {
-        return sum + (item.quantity * item.unit_price);
-      }, 0);
-      
       // Prepare order data for API
       const orderData = {
         supplier_id: parseInt(newOrder.supplier_id),

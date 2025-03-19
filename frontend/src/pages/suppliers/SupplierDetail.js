@@ -21,35 +21,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
-// Mock data - in a real app, this would come from API calls
-const mockSupplierData = [
-  { 
-    id: 1, 
-    name: 'Tech Components Inc', 
-    contact_person: 'John Smith',
-    email: 'john.smith@techcomp.com',
-    phone: '+1-555-0123',
-    address: '123 Tech Park, Silicon Valley, CA',
-    rating: 4.5,
-    certification: 'ISO 9001:2015',
-    performance_score: 92,
-    last_delivery_date: '2023-05-10T14:30:00Z',
-    payment_terms: 'Net 30'
-  },
-  { 
-    id: 2, 
-    name: 'Global Electronics Ltd', 
-    contact_person: 'Sarah Johnson',
-    email: 'sarah.j@globalelec.com',
-    phone: '+1-555-0124',
-    address: '456 Industrial Ave, Boston, MA',
-    rating: 4.0,
-    certification: 'ISO 14001:2015',
-    performance_score: 88,
-    last_delivery_date: '2023-05-09T11:20:00Z',
-    payment_terms: 'Net 45'
-  }
-];
+// Import the supplier API service
+import { supplierAPI } from '../../services/api';
 
 const SupplierDetail = () => {
   const { id } = useParams();
@@ -77,25 +50,14 @@ const SupplierDetail = () => {
     // Log supplier detail view activity
     logActivity('view', { page: 'supplier-detail', id });
     
-    // Simulate API call to fetch supplier data
+    // Fetch supplier data from API
     const fetchSupplier = async () => {
       try {
-        // In a real app, this would be an API call
-        // const response = await axios.get(`/api/suppliers/${id}`);
-        // setSupplier(response.data);
-        // setFormData(response.data);
-        
-        // Using mock data for demonstration
-        setTimeout(() => {
-          const item = mockSupplierData.find(item => item.id === parseInt(id));
-          if (item) {
-            setSupplier(item);
-            setFormData(item);
-          } else {
-            setError('Supplier not found');
-          }
-          setLoading(false);
-        }, 1000);
+        setLoading(true);
+        const data = await supplierAPI.getById(parseInt(id));
+        setSupplier(data);
+        setFormData(data);
+        setLoading(false);
       } catch (error) {
         console.error('Error fetching supplier:', error);
         setError('Failed to load supplier');
@@ -128,11 +90,8 @@ const SupplierDetail = () => {
     setSuccess(false);
     
     try {
-      // In a real app, this would be an API call
-      // await axios.put(`/api/suppliers/${id}`, formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update supplier using the API
+      await supplierAPI.update(parseInt(id), formData);
       
       // Update local state
       setSupplier(formData);

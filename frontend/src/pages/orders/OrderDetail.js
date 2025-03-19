@@ -5,7 +5,6 @@ import {
   Typography,
   Paper,
   Grid,
-  Divider,
   Button,
   CircularProgress,
   Alert,
@@ -30,7 +29,7 @@ import { orderAPI, supplierAPI } from '../../services/api';
 const OrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { logActivity, hasRole } = useAuth();
+  const { logActivity } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

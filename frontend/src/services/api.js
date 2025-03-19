@@ -24,6 +24,24 @@ api.interceptors.request.use(
   }
 );
 
+// Add response interceptor to handle authentication errors
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    // Handle 401 Unauthorized errors
+    if (error.response && error.response.status === 401) {
+      console.log('Authentication error detected, redirecting to login');
+      // Clear auth token
+      localStorage.removeItem('authToken');
+      // Redirect to login page
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth API
 export const authAPI = {
   login: async (email, password) => {
@@ -83,6 +101,9 @@ export const supplierAPI = {
   update: async (id, data) => {
     const response = await api.put(`/suppliers/${id}`, data);
     return response.data;
+  },
+  delete: async (id) => {
+    await api.delete(`/suppliers/${id}`);
   },
 };
 
